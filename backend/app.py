@@ -215,8 +215,7 @@ print(json.dumps(test_results))
             ['python3', '-c', script],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
-            timeout=10
+            text=True
         )
         
         stdout, stderr = process.communicate(timeout=10)

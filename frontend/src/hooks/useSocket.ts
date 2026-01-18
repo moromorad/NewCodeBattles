@@ -90,11 +90,14 @@ export const useSocket = () => {
       testResults: any[]
       newCard: ProblemCard
     }) => {
+      console.log('[Socket] Solution passed:', data)
       removeCard(data.playerId, data.cardId)
       addCard(data.playerId, data.newCard)
       // Clear selection if it was the current player
       if (data.playerId === useGameStore.getState().currentPlayerId) {
         selectCard(null)
+        // Show success feedback
+        alert(`✅ All Tests Passed!\n\nGreat job! Card completed.`)
       }
     })
 
@@ -105,8 +108,9 @@ export const useSocket = () => {
       error: string
       testResults: any[]
     }) => {
-      // Could show error message here - for now just log
-      console.error('Solution failed:', data.error)
+      console.error('[Socket] Solution failed:', data)
+      // Show visual feedback
+      alert(`❌ Test Failed!\n\nError: ${data.error}\n\nCheck console for details.`)
     })
 
     // Listen for reward applied
