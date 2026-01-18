@@ -9,11 +9,10 @@ interface GameScreenProps {
   emitSelectCard: (cardId: string) => void
   emitSubmitSolution: (cardId: string, code: string) => void
   emitPlayerEliminated: () => void
-  emitUpdateTimer: (timeRemaining: number) => void
   socket: any // Socket instance for listening to events
 }
 
-export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerEliminated, emitUpdateTimer, socket }: GameScreenProps) {
+export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerEliminated, socket }: GameScreenProps) {
   const {
     players,
     currentPlayerId,
@@ -62,29 +61,25 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
     }
   }, [socket, currentPlayerId])
 
-  // Timer countdown
+  // Timer check - runs every 100ms for smooth updates
   useEffect(() => {
-    if (!currentPlayer || currentPlayer.isEliminated) return
+    if (!currentPlayer || currentPlayer.isEliminated || !currentPlayer.timerEndTime) return
 
     const interval = setInterval(() => {
-      const player = players[currentPlayerId!]
-      if (player && player.timeRemaining > 0) {
-        const newTime = Math.max(0, player.timeRemaining - 1)
-        updatePlayer(currentPlayerId!, { timeRemaining: newTime })
+      const timeLeft = Math.max(0, Math.floor((currentPlayer.timerEndTime! - Date.now()) / 1000))
 
-        // Emit timer update every second for real-time sync
-        emitUpdateTimer(newTime)
-
-        if (newTime === 0) {
-          // Emit player eliminated to backend
-          emitPlayerEliminated()
-          updatePlayer(currentPlayerId!, { isEliminated: true })
-        }
+      if (timeLeft === 0 && !currentPlayer.isEliminated) {
+        // Timer expired - emit player eliminated
+        emitPlayerEliminated()
+        updatePlayer(currentPlayerId!, { isEliminated: true, timerEndTime: null })
       }
-    }, 1000)
+
+      // Force re-render by triggering a state update
+      // We don't need to update timerEndTime, just check it
+    }, 100) // Check every 100ms for smooth countdown
 
     return () => clearInterval(interval)
-  }, [currentPlayerId, players, updatePlayer, emitPlayerEliminated, emitUpdateTimer, currentPlayer])
+  }, [currentPlayerId, currentPlayer, emitPlayerEliminated, updatePlayer])
 
   const handleCardSelect = (cardId: string) => {
     if (currentPlayer && !currentPlayer.isEliminated) {

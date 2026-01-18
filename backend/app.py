@@ -261,7 +261,7 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
     """Apply reward to player(s)"""
     if reward['effect'] == 'add_time':
         if player_id in game_state['players']:
-            game_state['players'][player_id]['timeRemaining'] += reward['value']
+            game_state['players'][player_id]['timerEndTime'] += reward['value']
             emit('reward_applied', {
                 'playerId': player_id,
                 'effect': 'add_time',
@@ -275,8 +275,10 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
         if other_players:
             import random
             target_id = random.choice(other_players)
-            game_state['players'][target_id]['timeRemaining'] = max(0, 
-                game_state['players'][target_id]['timeRemaining'] - reward['value'])
+            game_state['players'][target_id]['timerEndTime'] = max(
+                time.time(),  # Can't go below current time (0 seconds left)
+                game_state['players'][target_id]['timerEndTime'] - reward['value']
+            )
             emit('reward_applied', {
                 'playerId': target_id,
                 'effect': 'remove_time',
@@ -372,7 +374,7 @@ def handle_join_room(data):
         'id': player_id,
         'username': username,
         'socket_id': socket_id,
-        'timeRemaining': 300,  # 5 minutes default
+        'timerEndTime': None,  # Will be set when game starts
         'isEliminated': False,
         'currentProblem': None,
         'cards': [],
@@ -418,6 +420,11 @@ def handle_start_game():
     # Set game status
     game_state['gameStatus'] = 'playing'
     
+    # Set timer end time for all players (5 minutes from now)
+    timer_end_time = time.time() + 300
+    for pid in game_state['players'].keys():
+        game_state['players'][pid]['timerEndTime'] = timer_end_time
+    
     # Deal 5 cards to each player
     for pid in game_state['players'].keys():
         cards = [generate_card() for _ in range(5)]
@@ -428,7 +435,7 @@ def handle_start_game():
         'players': {pid: {
             'id': p['id'],
             'username': p['username'],
-            'timeRemaining': p['timeRemaining'],
+            'timerEndTime': p['timerEndTime'],
             'isEliminated': p['isEliminated'],
             'currentProblem': p['currentProblem'],
             'cards': p['cards']
@@ -590,27 +597,6 @@ def handle_get_game_state():
     """Send current game state to requesting client"""
     socket_id = request.sid
     emit('game_state', game_state, room=socket_id)
-
-
-@socketio.on('update_timer')
-def handle_update_timer(data):
-    """Handle timer updates from clients and broadcast to other players"""
-    socket_id = request.sid
-    
-    if socket_id not in socket_to_player:
-        return
-    
-    player_id = socket_to_player[socket_id]
-    time_remaining = data.get('timeRemaining', 0)
-    
-    if player_id in game_state['players']:
-        game_state['players'][player_id]['timeRemaining'] = time_remaining
-        
-        # Broadcast to other players (not self)
-        emit('timer_update', {
-            'playerId': player_id,
-            'timeRemaining': time_remaining
-        }, broadcast=True, include_self=False)
 
 
 @socketio.on('test_message')

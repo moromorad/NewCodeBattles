@@ -6,7 +6,11 @@ interface PlayerHealthBarProps {
 }
 
 export function PlayerHealthBar({ player, isCurrentPlayer }: PlayerHealthBarProps) {
-  const percentage = (player.timeRemaining / 300) * 100
+  // Calculate time remaining from timestamp
+  const timeRemaining = player.timerEndTime
+    ? Math.max(0, Math.floor((player.timerEndTime - Date.now()) / 1000))
+    : 0
+  const percentage = (timeRemaining / 300) * 100
   const currentCard = player.cards.find(c => c.id === player.currentProblem)
 
   return (
@@ -18,20 +22,19 @@ export function PlayerHealthBar({ player, isCurrentPlayer }: PlayerHealthBarProp
             <span className="text-xs text-blue-400">(You)</span>
           )}
         </div>
-        <span className={`text-sm font-mono ${player.timeRemaining < 60 ? 'text-red-400' : 'text-gray-400'}`}>
-          {Math.floor(player.timeRemaining / 60)}:{(Math.floor(player.timeRemaining % 60)).toString().padStart(2, '0')}
+        <span className={`text-sm font-mono ${timeRemaining < 60 ? 'text-red-400' : 'text-gray-400'}`}>
+          {Math.floor(timeRemaining / 60)}:{(Math.floor(timeRemaining % 60)).toString().padStart(2, '0')}
         </span>
       </div>
-      
+
       <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
         <div
-          className={`h-3 rounded-full transition-all ${
-            player.timeRemaining < 60
+          className={`h-3 rounded-full transition-all ${timeRemaining < 60
               ? 'bg-red-500'
-              : player.timeRemaining < 120
-              ? 'bg-yellow-500'
-              : 'bg-green-500'
-          }`}
+              : timeRemaining < 120
+                ? 'bg-yellow-500'
+                : 'bg-green-500'
+            }`}
           style={{ width: `${Math.max(0, percentage)}%` }}
         />
       </div>

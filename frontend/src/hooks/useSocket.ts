@@ -49,7 +49,7 @@ export const useSocket = () => {
       const newPlayer: Player = {
         id: data.playerId,
         username: data.username,
-        timeRemaining: 300,
+        timerEndTime: null,  // Will be set when game starts
         isEliminated: false,
         currentProblem: null,
         cards: []
@@ -117,27 +117,21 @@ export const useSocket = () => {
       fromPlayer?: string
     }) => {
       const player = useGameStore.getState().players[data.playerId]
-      if (player) {
-        // Apply rewards immediately
+      if (player && player.timerEndTime) {
+        // Apply rewards by adjusting timer end time
         if (data.effect === 'add_time') {
-          const newTime = player.timeRemaining + data.value
-          updatePlayer(data.playerId, { timeRemaining: newTime })
+          const newEndTime = player.timerEndTime + (data.value * 1000) // Convert to ms
+          updatePlayer(data.playerId, { timerEndTime: newEndTime })
         } else if (data.effect === 'remove_time') {
-          const newTime = Math.max(0, player.timeRemaining - data.value)
-          updatePlayer(data.playerId, { timeRemaining: newTime })
+          const newEndTime = Math.max(Date.now(), player.timerEndTime - (data.value * 1000))
+          updatePlayer(data.playerId, { timerEndTime: newEndTime })
         }
       }
     })
 
-    // Listen for timer updates from other players
-    newSocket.on('timer_update', (data: { playerId: string; timeRemaining: number }) => {
-      console.log('[Socket] timer_update received:', data)
-      updatePlayer(data.playerId, { timeRemaining: data.timeRemaining })
-    })
-
     // Listen for player eliminated
     newSocket.on('player_eliminated', (data: { playerId: string; username: string }) => {
-      updatePlayer(data.playerId, { isEliminated: true, timeRemaining: 0 })
+      updatePlayer(data.playerId, { isEliminated: true, timerEndTime: null })
     })
 
     // Listen for game ended
@@ -199,13 +193,6 @@ export const useSocket = () => {
     }
   }, [socket])
 
-  const emitUpdateTimer = useCallback((timeRemaining: number) => {
-    if (socket?.connected) {
-      console.log('[Socket] Emitting timer update:', timeRemaining)
-      socket.emit('update_timer', { timeRemaining })
-    }
-  }, [socket])
-
   const emitPlayerEliminated = useCallback(() => {
     if (socket?.connected) {
       socket.emit('player_eliminated', {})
@@ -220,6 +207,5 @@ export const useSocket = () => {
     emitSelectCard,
     emitSubmitSolution,
     emitPlayerEliminated,
-    emitUpdateTimer,
   }
 }

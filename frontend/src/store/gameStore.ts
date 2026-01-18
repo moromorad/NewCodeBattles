@@ -29,7 +29,7 @@ export interface ProblemCard {
 export interface Player {
   id: string
   username: string
-  timeRemaining: number
+  timerEndTime: number | null  // Unix timestamp in milliseconds when timer expires
   isEliminated: boolean
   currentProblem: string | null
   cards: ProblemCard[]
@@ -40,14 +40,14 @@ interface GameState {
   currentPlayerId: string | null
   username: string
   roomCode: string
-  
+
   // All players
   players: Record<string, Player>
-  
+
   // Game status
   gameStatus: 'menu' | 'lobby' | 'playing' | 'ended'
   selectedCardId: string | null
-  
+
   // Actions
   setUsername: (username: string) => void
   joinRoom: (roomCode: string) => void
@@ -70,9 +70,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   players: {},
   gameStatus: 'menu',
   selectedCardId: null,
-  
+
   setUsername: (username) => set({ username }),
-  
+
   joinRoom: (roomCode) => {
     // Just update room code and status - backend creates player via socket
     set({
@@ -80,13 +80,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameStatus: 'lobby'
     })
   },
-  
+
   setGameStatus: (status) => set({ gameStatus: status }),
-  
+
   addPlayer: (player) => set((state) => ({
     players: { ...state.players, [player.id]: player }
   })),
-  
+
   updatePlayer: (playerId, updates) => set((state) => ({
     players: {
       ...state.players,
@@ -96,12 +96,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
   })),
-  
+
   selectCard: (cardId) => {
     const state = get()
     const playerId = state.currentPlayerId
     if (!playerId) return
-    
+
     if (cardId === null) {
       set({
         selectedCardId: null,
@@ -109,10 +109,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       get().updatePlayer(playerId, { currentProblem: null })
       return
     }
-    
+
     const player = state.players[playerId]
     const card = player.cards.find(c => c.id === cardId)
-    
+
     if (card) {
       set({
         selectedCardId: cardId,
@@ -121,11 +121,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       get().updatePlayer(playerId, { currentProblem: cardId })
     }
   },
-  
+
   removeCard: (playerId, cardId) => set((state) => {
     const player = state.players[playerId]
     if (!player) return state
-    
+
     return {
       players: {
         ...state.players,
@@ -138,11 +138,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       selectedCardId: state.selectedCardId === cardId ? null : state.selectedCardId
     }
   }),
-  
+
   addCard: (playerId, card) => set((state) => {
     const player = state.players[playerId]
     if (!player) return state
-    
+
     return {
       players: {
         ...state.players,
@@ -153,12 +153,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
   }),
-  
+
   startGame: () => {
     // Just update status - backend deals cards via game_started event
     set({ gameStatus: 'playing' })
   },
-  
+
   syncGameState: (gameState: { players: Record<string, Player>, gameStatus?: 'menu' | 'lobby' | 'playing' | 'ended', currentPlayerId?: string }) => {
     set({
       players: gameState.players,
@@ -166,7 +166,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       currentPlayerId: gameState.currentPlayerId || get().currentPlayerId
     })
   },
-  
+
   setCurrentPlayerId: (playerId: string) => {
     set({ currentPlayerId: playerId })
   }
