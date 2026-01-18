@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
-import { useSocket } from '../hooks/useSocket'
 
-export function StartMenu() {
+interface StartMenuProps {
+  emitJoinRoom: (username: string, roomCode: string) => void
+  connected: boolean
+}
+
+export function StartMenu({ emitJoinRoom, connected }: StartMenuProps) {
   const [username, setUsername] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const { setUsername: setStoreUsername, joinRoom, gameStatus } = useGameStore()
-  const { emitJoinRoom, connected } = useSocket()
 
   // Navigate to lobby when gameStatus changes to 'lobby'
   useEffect(() => {

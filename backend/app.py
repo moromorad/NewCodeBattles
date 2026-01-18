@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import uuid
 import json
@@ -14,11 +17,10 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-pro
 # Enable CORS for all routes
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Initialize SocketIO with CORS enabled
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
-    async_mode='threading'
+    async_mode='eventlet'
 )
 
 # Socket ID to Player ID mapping
@@ -614,4 +616,4 @@ if __name__ == '__main__':
     print(f'Connect frontend to: http://localhost:{port}')
     print(f'For ngrok: Use the ngrok URL when running ngrok http {port}')
     
-    socketio.run(app, host=host, port=port, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host=host, port=port)

@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
-import { useSocket } from '../hooks/useSocket'
 import { PlayerHealthBar } from './PlayerHealthBar'
 import { ProblemCard } from './ProblemCard'
 import { CodeEditor } from './CodeEditor'
 
-export function GameScreen() {
+interface GameScreenProps {
+  emitSelectCard: (cardId: string) => void
+  emitSubmitSolution: (cardId: string, code: string) => void
+  emitPlayerEliminated: () => void
+}
+
+export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerEliminated }: GameScreenProps) {
   const {
     players,
     currentPlayerId,
@@ -14,8 +19,7 @@ export function GameScreen() {
     updatePlayer,
     gameStatus
   } = useGameStore()
-  
-  const { emitSelectCard, emitSubmitSolution, emitPlayerEliminated } = useSocket()
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const currentPlayer = currentPlayerId ? players[currentPlayerId] : null
@@ -114,15 +118,14 @@ export function GameScreen() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-2xl font-bold mb-2">{selectedCard.problem.title}</h2>
-                <span className={`inline-block px-3 py-1 rounded text-sm font-medium ${
-                  selectedCard.problem.difficulty === 'Easy' ? 'bg-green-600' :
-                  selectedCard.problem.difficulty === 'Medium' ? 'bg-yellow-600' : 'bg-red-600'
-                }`}>
+                <span className={`inline-block px-3 py-1 rounded text-sm font-medium ${selectedCard.problem.difficulty === 'Easy' ? 'bg-green-600' :
+                    selectedCard.problem.difficulty === 'Medium' ? 'bg-yellow-600' : 'bg-red-600'
+                  }`}>
                   {selectedCard.problem.difficulty}
                 </span>
               </div>
             </div>
-            
+
             <p className="text-gray-300 mb-4">{selectedCard.problem.description}</p>
 
             {/* Function Signature */}

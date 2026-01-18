@@ -1,10 +1,12 @@
 import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
-import { useSocket } from '../hooks/useSocket'
 
-export function Lobby() {
+interface LobbyProps {
+  emitStartGame: () => void
+}
+
+export function Lobby({ emitStartGame }: LobbyProps) {
   const { players, currentPlayerId, gameStatus, setGameStatus } = useGameStore()
-  const { emitStartGame } = useSocket()
   const playerList = Object.values(players)
 
   // Navigate to game screen when game starts

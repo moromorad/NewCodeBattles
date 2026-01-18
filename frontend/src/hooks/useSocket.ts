@@ -7,7 +7,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
 export const useSocket = () => {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [connected, setConnected] = useState(false)
-  
+
   const {
     setCurrentPlayerId,
     setGameStatus,
@@ -21,7 +21,7 @@ export const useSocket = () => {
 
   useEffect(() => {
     const newSocket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'], // Try polling first for ngrok stability
     })
 
     newSocket.on('connect', () => {
@@ -36,12 +36,15 @@ export const useSocket = () => {
 
     // Listen for player joined
     newSocket.on('player_joined', (data: { playerId: string; username: string }) => {
+      console.log('[Socket] player_joined event received:', data)
       // If this is the current player (we just joined), set currentPlayerId
       const username = useGameStore.getState().username
+      console.log('[Socket] Current username in store:', username)
       if (data.username === username) {
+        console.log('[Socket] Setting current player ID:', data.playerId)
         setCurrentPlayerId(data.playerId)
       }
-      
+
       // Add player to store (backend will send full state, but we can add optimistically)
       const newPlayer: Player = {
         id: data.playerId,
@@ -51,6 +54,7 @@ export const useSocket = () => {
         currentProblem: null,
         cards: []
       }
+      console.log('[Socket] Adding player to store:', newPlayer)
       addPlayer(newPlayer)
     })
 
@@ -133,6 +137,7 @@ export const useSocket = () => {
 
     // Listen for game state updates
     newSocket.on('game_state', (data: { players: Record<string, Player> }) => {
+      console.log('[Socket] game_state event received:', data)
       syncGameState({ players: data.players })
     })
 
@@ -149,8 +154,12 @@ export const useSocket = () => {
   }, [setCurrentPlayerId, setGameStatus, addPlayer, updatePlayer, removeCard, addCard, selectCard, syncGameState])
 
   const emitJoinRoom = useCallback((username: string, roomCode: string) => {
+    console.log('[Socket] emitJoinRoom called with:', { username, roomCode, connected: socket?.connected })
     if (socket?.connected) {
+      console.log('[Socket] Emitting join_room event')
       socket.emit('join_room', { username, roomCode })
+    } else {
+      console.error('[Socket] Cannot emit join_room - socket not connected')
     }
   }, [socket])
 
