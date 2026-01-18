@@ -17,11 +17,7 @@ export function CodeEditor({ onSubmit, disabled }: CodeEditorProps) {
   const handleSubmit = () => {
     if (code.trim() && !disabled) {
       onSubmit(code)
-      setCode('')
-      // Clear Monaco editor content
-      if (editorRef.current) {
-        editorRef.current.setValue('')
-      }
+      // Don't clear the editor - keep the code visible
     }
   }
 
