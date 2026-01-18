@@ -425,6 +425,7 @@ def handle_join_room(data):
         'socket_id': socket_id,
         'timerEndTime': None,  # Will be set when game starts
         'isEliminated': False,
+        'eliminatedAt': None,  # Timestamp when player was eliminated
         'currentProblem': None,
         'cards': [],
         'isTimeFrozen': False,
@@ -486,6 +487,7 @@ def handle_start_game():
             'username': p['username'],
             'timerEndTime': p['timerEndTime'],
             'isEliminated': p['isEliminated'],
+            'eliminatedAt': p.get('eliminatedAt'),
             'currentProblem': p['currentProblem'],
             'cards': p['cards']
         } for pid, p in game_state['players'].items()}
@@ -627,12 +629,14 @@ def handle_player_eliminated(data):
     
     # Mark as eliminated
     player['isEliminated'] = True
+    player['eliminatedAt'] = time.time() * 1000  # Timestamp in milliseconds
     player['timeRemaining'] = 0
     
     # Broadcast elimination
     emit('player_eliminated', {
         'playerId': player_id,
-        'username': player['username']
+        'username': player['username'],
+        'eliminatedAt': player['eliminatedAt']
     }, broadcast=True)
     
     print(f'Player {player["username"]} eliminated')

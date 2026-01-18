@@ -171,7 +171,7 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
       if (timeLeft === 0 && !currentPlayer.isEliminated) {
         // Timer expired - emit player eliminated
         emitPlayerEliminated()
-        updatePlayer(currentPlayerId!, { isEliminated: true, timerEndTime: null })
+        updatePlayer(currentPlayerId!, { isEliminated: true, eliminatedAt: Date.now(), timerEndTime: null })
       }
     }, 100) // Check every 100ms for smooth countdown
 
@@ -231,14 +231,20 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
 
   // Show winner screen if game ended
   if (gameStatus === 'ended') {
-    // Rank players: non-eliminated first (by time remaining), then eliminated
+    // Rank players: non-eliminated first (by time remaining), then eliminated (by elimination order)
     const rankedPlayers = Object.values(players).sort((a, b) => {
+      // Non-eliminated players always rank higher than eliminated players
       if (!a.isEliminated && b.isEliminated) return -1
       if (a.isEliminated && !b.isEliminated) return 1
+
+      // Both non-eliminated: sort by time remaining (more time = higher rank)
       if (!a.isEliminated && !b.isEliminated) {
         return (b.timerEndTime || 0) - (a.timerEndTime || 0)
       }
-      return 0
+
+      // Both eliminated: sort by elimination time (eliminated later = higher rank)
+      // Player eliminated last should be 2nd place
+      return (b.eliminatedAt || 0) - (a.eliminatedAt || 0)
     })
 
     const currentPlayerRank = rankedPlayers.findIndex(p => p.id === currentPlayerId) + 1

@@ -31,6 +31,7 @@ export interface Player {
   username: string
   timerEndTime: number | null  // Unix timestamp in milliseconds when timer expires
   isEliminated: boolean
+  eliminatedAt: number | null  // Unix timestamp in milliseconds when player was eliminated
   currentProblem: string | null
   cards: ProblemCard[]
 }

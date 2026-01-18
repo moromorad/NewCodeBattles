@@ -51,6 +51,7 @@ export const useSocket = () => {
         username: data.username,
         timerEndTime: null,  // Will be set when game starts
         isEliminated: false,
+        eliminatedAt: null,
         currentProblem: null,
         cards: []
       }
@@ -149,8 +150,8 @@ export const useSocket = () => {
     })
 
     // Listen for player eliminated
-    newSocket.on('player_eliminated', (data: { playerId: string; username: string }) => {
-      updatePlayer(data.playerId, { isEliminated: true, timerEndTime: null })
+    newSocket.on('player_eliminated', (data: { playerId: string; username: string; eliminatedAt: number }) => {
+      updatePlayer(data.playerId, { isEliminated: true, eliminatedAt: data.eliminatedAt, timerEndTime: null })
     })
 
     // Listen for game ended
