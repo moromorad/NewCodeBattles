@@ -1,17 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
+import { useSocket } from '../hooks/useSocket'
 
 export function StartMenu() {
   const [username, setUsername] = useState('')
   const [roomCode, setRoomCode] = useState('')
-  const { setUsername: setStoreUsername, joinRoom } = useGameStore()
+  const { setUsername: setStoreUsername, joinRoom, gameStatus } = useGameStore()
+  const { emitJoinRoom, connected } = useSocket()
+
+  // Navigate to lobby when gameStatus changes to 'lobby'
+  useEffect(() => {
+    if (gameStatus === 'lobby') {
+      // Navigation happens via App.tsx routing
+    }
+  }, [gameStatus])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (username.trim()) {
+    if (username.trim() && connected) {
       setStoreUsername(username.trim())
-      // Any room code works - single room system
-      joinRoom(roomCode.trim() || 'ROOM1')
+      const finalRoomCode = roomCode.trim() || 'ROOM1'
+      joinRoom(finalRoomCode)
+      // Emit join_room event to backend
+      emitJoinRoom(username.trim(), finalRoomCode)
     }
   }
 
@@ -37,7 +48,8 @@ export function StartMenu() {
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Enter your username"
               required
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-white"
+              disabled={!connected}
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-white disabled:opacity-50"
             />
           </div>
 
@@ -51,13 +63,21 @@ export function StartMenu() {
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
               placeholder="Enter room code"
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-white"
+              disabled={!connected}
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-white disabled:opacity-50"
             />
           </div>
 
+          {!connected && (
+            <div className="text-red-400 text-sm text-center">
+              Connecting to server...
+            </div>
+          )}
+
           <button
             type="submit"
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors"
+            disabled={!connected || !username.trim()}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Join Game
           </button>

@@ -1,11 +1,21 @@
+import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
+import { useSocket } from '../hooks/useSocket'
 
 export function Lobby() {
-  const { players, currentPlayerId, startGame } = useGameStore()
+  const { players, currentPlayerId, gameStatus, setGameStatus } = useGameStore()
+  const { emitStartGame } = useSocket()
   const playerList = Object.values(players)
 
+  // Navigate to game screen when game starts
+  useEffect(() => {
+    if (gameStatus === 'playing') {
+      // Navigation happens via App.tsx routing
+    }
+  }, [gameStatus])
+
   const handleStartGame = () => {
-    startGame()
+    emitStartGame()
   }
 
   const isHost = currentPlayerId && playerList.length > 0 && playerList[0].id === currentPlayerId

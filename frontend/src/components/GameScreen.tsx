@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useGameStore, ProblemCard as ProblemCardType } from '../store/gameStore'
+import { useGameStore } from '../store/gameStore'
+import { useSocket } from '../hooks/useSocket'
 import { PlayerHealthBar } from './PlayerHealthBar'
 import { ProblemCard } from './ProblemCard'
 import { CodeEditor } from './CodeEditor'
@@ -10,10 +11,12 @@ export function GameScreen() {
     currentPlayerId,
     selectedCardId,
     selectCard,
-    removeCard,
-    addCard,
-    updatePlayer
+    updatePlayer,
+    gameStatus
   } = useGameStore()
+  
+  const { emitSelectCard, emitSubmitSolution, emitPlayerEliminated } = useSocket()
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const currentPlayer = currentPlayerId ? players[currentPlayerId] : null
   const selectedCard = currentPlayer?.cards.find(c => c.id === selectedCardId) || null
@@ -29,60 +32,36 @@ export function GameScreen() {
         updatePlayer(currentPlayerId!, { timeRemaining: newTime })
 
         if (newTime === 0) {
+          // Emit player eliminated to backend
+          emitPlayerEliminated()
           updatePlayer(currentPlayerId!, { isEliminated: true })
         }
       }
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [currentPlayerId, players, updatePlayer])
+  }, [currentPlayerId, players, updatePlayer, emitPlayerEliminated, currentPlayer])
 
   const handleCardSelect = (cardId: string) => {
     if (currentPlayer && !currentPlayer.isEliminated) {
       selectCard(cardId)
+      // Emit to backend
+      emitSelectCard(cardId)
     }
   }
 
   const handleSubmitSolution = (code: string) => {
     if (!selectedCardId || !currentPlayerId) return
 
-    // Generate a random new card from sample problems
-    const sampleProblems: Omit<ProblemCardType, 'id'>[] = [
-      {
-        problem: { title: 'Two Sum', description: 'Find two numbers that add up to target', difficulty: 'Easy' as const, testCases: [] },
-        reward: { type: 'buff', target: 'self', effect: 'add_time', value: 30 }
-      },
-      {
-        problem: { title: 'Valid Parentheses', description: 'Check if parentheses are valid', difficulty: 'Easy' as const, testCases: [] },
-        challenge: { type: 'time_limit', value: 120 }
-      },
-      {
-        problem: { title: 'Merge Lists', description: 'Merge two sorted lists', difficulty: 'Medium' as const, testCases: [] },
-        reward: { type: 'debuff', target: 'other', effect: 'remove_time', value: 20 }
-      },
-      {
-        problem: { title: 'Palindrome', description: 'Find longest palindrome', difficulty: 'Medium' as const, testCases: [] },
-        challenge: { type: 'complexity', value: 'O(n)' }
-      },
-      {
-        problem: { title: 'Container Water', description: 'Container with most water', difficulty: 'Hard' as const, testCases: [] },
-        reward: { type: 'buff', target: 'self', effect: 'add_time', value: 60 }
-      }
-    ]
-    const randomTemplate = sampleProblems[Math.floor(Math.random() * sampleProblems.length)]
-    const generatedCard: ProblemCardType = {
-      ...randomTemplate,
-      id: Math.random().toString(36).substring(7) + Date.now()
-    }
+    // Clear any previous errors
+    setErrorMessage(null)
 
-    removeCard(currentPlayerId, selectedCardId)
-    selectCard(null) // Clear selection
-    
-    // Once a problem is complete, add new card after a negligible (1ms) delay.
-    setTimeout(() => {
-      addCard(currentPlayerId, generatedCard)
-    }, 1)
+    // Emit to backend - backend handles code execution, card removal, and new card addition
+    emitSubmitSolution(selectedCardId, code)
   }
+
+  // Listen for solution failed event (handled by useSocket, but we can show error here)
+  // Error handling is done in useSocket hook, but we could add a listener here if needed
 
   if (!currentPlayer) {
     return <div className="min-h-screen bg-gray-900 text-white p-8">Loading...</div>
@@ -90,6 +69,21 @@ export function GameScreen() {
 
   // When a card is selected, hide other cards
   const cardsToShow = selectedCardId ? currentPlayer.cards.filter(c => c.id === selectedCardId) : currentPlayer.cards
+
+  // Show winner screen if game ended
+  if (gameStatus === 'ended') {
+    const winner = Object.values(players).find(p => p.id === currentPlayerId && !p.isEliminated)
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-5xl font-bold mb-4">Game Over!</h1>
+          <p className="text-2xl text-gray-400">
+            {winner ? 'You Won! 🎉' : 'Game Ended'}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
@@ -107,6 +101,13 @@ export function GameScreen() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col p-6">
+        {/* Error Message Display */}
+        {errorMessage && (
+          <div className="mb-4 p-4 bg-red-900/30 border border-red-700 rounded-lg text-red-300">
+            {errorMessage}
+          </div>
+        )}
+
         {/* Selected Problem Card Display */}
         {selectedCard ? (
           <div className="mb-6 bg-gray-800 rounded-lg p-6">
@@ -123,6 +124,14 @@ export function GameScreen() {
             </div>
             
             <p className="text-gray-300 mb-4">{selectedCard.problem.description}</p>
+
+            {/* Function Signature */}
+            {selectedCard.problem.functionSignature && (
+              <div className="mb-4 p-3 bg-gray-900 rounded-lg">
+                <p className="text-sm text-gray-400 mb-1">Function Signature:</p>
+                <code className="text-green-400 font-mono">{selectedCard.problem.functionSignature}</code>
+              </div>
+            )}
 
             {selectedCard.reward && (
               <div className="mb-2">
@@ -141,7 +150,10 @@ export function GameScreen() {
             )}
 
             <button
-              onClick={() => selectCard(null)}
+              onClick={() => {
+                selectCard(null)
+                emitSelectCard('') // Clear selection on backend
+              }}
               className="mt-4 text-sm text-gray-400 hover:text-white"
             >
               ← Back to cards
@@ -172,25 +184,6 @@ export function GameScreen() {
             />
           </div>
         )}
-
-        {
-        /* A duplicated "Select a Problem" section. Currently not needed.
-        {!selectedCardId && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-3">Your Cards ({currentPlayer.cards.length}/5)</h3>
-            <div className="grid grid-cols-5 gap-4">
-              {currentPlayer.cards.map((card) => (
-                <ProblemCard
-                  key={card.id}
-                  card={card}
-                  isSelected={false}
-                  onSelect={() => handleCardSelect(card.id)}
-                />
-              ))}
-            </div>
-          </div>
-        )} */
-        }
       </div>
     </div>
   )
