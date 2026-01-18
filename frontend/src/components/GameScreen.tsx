@@ -5,6 +5,7 @@ import { ProblemCard } from './ProblemCard'
 import { CodeEditor } from './CodeEditor'
 import { TestFeedback } from './TestFeedback'
 import { PlayerSelectionModal } from './PlayerSelectionModal'
+import { DebugMenu } from './DebugMenu'
 
 interface GameScreenProps {
   emitSelectCard: (cardId: string) => void
@@ -49,6 +50,9 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
 
   // Flashbang state
   const [flashbanged, setFlashbanged] = useState(false)
+
+  // Debug menu state
+  const [showDebugMenu, setShowDebugMenu] = useState(false)
 
 
   // Ticker to force re-renders for timer display
@@ -194,6 +198,35 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
     setTargetSelection({ show: false, targets: [], rewardValue: 0 })
   }
 
+  const handleDebugReward = (rewardType: string) => {
+    if (!socket || !currentPlayerId) return
+
+    // Handle flashbang_self separately for testing
+    if (rewardType === 'flashbang_self') {
+      setFlashbanged(true)
+      setTimeout(() => setFlashbanged(false), 2000)
+      return
+    }
+
+    // Create a mock reward object
+    const mockRewards: Record<string, any> = {
+      'add_time': { type: 'buff', target: 'self', effect: 'add_time', value: 30 },
+      'remove_time': { type: 'debuff', target: 'other', effect: 'remove_time', value: 20 },
+      'remove_time_targeted': { type: 'debuff', target: 'targeted', effect: 'remove_time_targeted', value: 50 },
+      'remove_time_all': { type: 'debuff', target: 'all', effect: 'remove_time_all', value: 30 },
+      'flashbang_targeted': { type: 'debuff', target: 'targeted', effect: 'flashbang_targeted', value: 1 }
+    }
+
+    const reward = mockRewards[rewardType]
+    if (!reward) return
+
+    // Simulate solution_passed event to trigger reward
+    socket.emit('debug_trigger_reward', {
+      playerId: currentPlayerId,
+      reward: reward
+    })
+  }
+
   // Listen for solution failed event (handled by useSocket, but we can show error here)
   // Error handling is done in useSocket hook, but we could add a listener here if needed
 
@@ -320,6 +353,20 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
       {/* Flashbang Overlay */}
       {flashbanged && (
         <div className="fixed inset-0 bg-white z-[70] animate-flashbang pointer-events-none" />
+      )}
+
+      {/* Debug Menu Toggle */}
+      <button
+        onClick={() => setShowDebugMenu(!showDebugMenu)}
+        className="fixed bottom-4 right-4 z-50 bg-gray-800 p-2 rounded-full border border-gray-700 hover:bg-gray-700 transition-colors shadow-lg"
+        title="Toggle Debug Menu"
+      >
+        🐛
+      </button>
+
+      {/* Debug Menu */}
+      {showDebugMenu && (
+        <DebugMenu onTriggerReward={handleDebugReward} />
       )}
 
       {/* Player Selection Modal */}

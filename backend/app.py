@@ -751,6 +751,23 @@ def handle_apply_targeted_debuff(data):
     player['pendingTargetedReward'] = None
 
 
+@socketio.on('debug_trigger_reward')
+def handle_debug_trigger_reward(data):
+    """Handle debug reward trigger"""
+    socket_id = request.sid
+    
+    if socket_id not in socket_to_player:
+        return
+        
+    player_id = socket_to_player[socket_id]
+    reward = data.get('reward')
+    
+    if player_id in game_state['players'] and reward:
+        print(f'Debug reward triggered by {game_state["players"][player_id]["username"]}: {reward["effect"]}')
+        apply_reward(player_id, reward)
+
+
+
 @socketio.on('get_game_state')
 def handle_get_game_state():
     """Send current game state to requesting client"""
