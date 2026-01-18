@@ -145,6 +145,20 @@ PROBLEM_TEMPLATES = [
         },
         'reward': {'type': 'buff', 'target': 'self', 'effect': 'add_time', 'value': 45},
         'challenge': {'type': 'time_limit', 'value': 180}
+    },
+    {
+        'problem': {
+            'title': 'Binary Search',
+            'description': 'Given a sorted array of integers and a target value, return the index of the target if found, otherwise return -1.',
+            'difficulty': 'Medium',
+            'functionSignature': 'def binarySearch(nums: list, target: int) -> int:',
+            'testCases': [
+                {'input': {'nums': [-1, 0, 3, 5, 9, 12], 'target': 9}, 'expectedOutput': 4},
+                {'input': {'nums': [-1, 0, 3, 5, 9, 12], 'target': 2}, 'expectedOutput': -1},
+                {'input': {'nums': [5], 'target': 5}, 'expectedOutput': 0}
+            ]
+        },
+        'reward': {'type': 'debuff', 'target': 'targeted', 'effect': 'flashbang_targeted', 'value': 1}
     }
 ]
 
@@ -319,6 +333,26 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
                 } for pid in other_players]
             }, room=game_state['players'][player_id]['socket_id'])
             print(f'Sent target selection request to {game_state["players"][player_id]["username"]}')
+    
+    elif reward['effect'] == 'flashbang_targeted':
+        # Request player to choose which opponent to flashbang
+        other_players = [pid for pid in game_state['players'].keys() 
+                        if pid != player_id and not game_state['players'][pid]['isEliminated']]
+        if other_players:
+            # Store pending reward in player state
+            game_state['players'][player_id]['pendingTargetedReward'] = reward
+            
+            # Emit event to player requesting target selection
+            emit('target_selection_required', {
+                'effect': reward['effect'],
+                'value': reward['value'],
+                'availableTargets': [{
+                    'playerId': pid,
+                    'username': game_state['players'][pid]['username'],
+                    'timeRemaining': max(0, int((game_state['players'][pid]['timerEndTime'] - time.time() * 1000) / 1000))
+                } for pid in other_players]
+            }, room=game_state['players'][player_id]['socket_id'])
+            print(f'Sent flashbang target selection request to {game_state["players"][player_id]["username"]}')
     
     elif reward['effect'] == 'remove_time_all':
         # Remove time from ALL other players
@@ -682,26 +716,39 @@ def handle_apply_targeted_debuff(data):
         emit('error', {'message': 'Cannot target eliminated player'})
         return
     
-    # Apply the debuff
+    
+    # Apply the debuff based on effect type
     reward = player['pendingTargetedReward']
-    game_state['players'][target_id]['timerEndTime'] = max(
-        time.time() * 1000,
-        game_state['players'][target_id]['timerEndTime'] - (reward['value'] * 1000)
-    )
+    
+    if reward['effect'] == 'remove_time_targeted':
+        # Apply time removal
+        game_state['players'][target_id]['timerEndTime'] = max(
+            time.time() * 1000,
+            game_state['players'][target_id]['timerEndTime'] - (reward['value'] * 1000)
+        )
+        
+        # Broadcast the reward application
+        emit('reward_applied', {
+            'playerId': target_id,
+            'effect': 'remove_time_targeted',
+            'value': reward['value'],
+            'fromPlayer': player_id,
+            'targetName': game_state['players'][target_id]['username']
+        }, broadcast=True)
+        
+        print(f'Player {player["username"]} targeted {target_player["username"]} with {reward["value"]}s debuff')
+    
+    elif reward['effect'] == 'flashbang_targeted':
+        # Apply flashbang to target player only
+        emit('flashbang_applied', {
+            'fromPlayer': player_id,
+            'fromUsername': player['username']
+        }, room=target_player['socket_id'])
+        
+        print(f'Player {player["username"]} flashbanged {target_player["username"]}')
     
     # Clear pending reward
     player['pendingTargetedReward'] = None
-    
-    # Broadcast the reward application
-    emit('reward_applied', {
-        'playerId': target_id,
-        'effect': 'remove_time_targeted',
-        'value': reward['value'],
-        'fromPlayer': player_id,
-        'targetName': game_state['players'][target_id]['username']
-    }, broadcast=True)
-    
-    print(f'Player {player["username"]} targeted {target_player["username"]} with {reward["value"]}s debuff')
 
 
 @socketio.on('get_game_state')

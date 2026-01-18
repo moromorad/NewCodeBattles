@@ -47,6 +47,9 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
   // Track new card for deal animation
   const [newCardId, setNewCardId] = useState<string | null>(null)
 
+  // Flashbang state
+  const [flashbanged, setFlashbanged] = useState(false)
+
 
   // Ticker to force re-renders for timer display
   const [, setTicker] = useState(0)
@@ -121,14 +124,25 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
       }, 2100) // Show after celebration (2s) + small buffer
     }
 
+    const handleFlashbang = () => {
+      // Trigger flashbang effect
+      setFlashbanged(true)
+      // Auto-dismiss after 2 seconds
+      setTimeout(() => {
+        setFlashbanged(false)
+      }, 2000)
+    }
+
     socket.on('solution_passed', handleSolutionPassed)
     socket.on('solution_failed', handleSolutionFailed)
     socket.on('target_selection_required', handleTargetSelectionRequired)
+    socket.on('flashbang_applied', handleFlashbang)
 
     return () => {
       socket.off('solution_passed', handleSolutionPassed)
       socket.off('solution_failed', handleSolutionFailed)
       socket.off('target_selection_required', handleTargetSelectionRequired)
+      socket.off('flashbang_applied', handleFlashbang)
     }
   }, [socket, currentPlayerId, currentPlayer])
 
@@ -301,6 +315,11 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
             </div>
           </div>
         </div>
+      )}
+
+      {/* Flashbang Overlay */}
+      {flashbanged && (
+        <div className="fixed inset-0 bg-white z-[70] animate-flashbang pointer-events-none" />
       )}
 
       {/* Player Selection Modal */}

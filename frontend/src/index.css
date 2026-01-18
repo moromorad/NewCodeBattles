@@ -58,4 +58,22 @@
     .animate-deal {
         animation: dealIn 0.8s ease-out forwards;
     }
+
+    @keyframes flashbang {
+        0% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 1;
+        }
+
+        100% {
+            opacity: 0;
+        }
+    }
+
+    .animate-flashbang {
+        animation: flashbang 2s ease-out forwards;
+    }
 }
