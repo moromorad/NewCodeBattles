@@ -124,6 +124,11 @@ export const useSocket = () => {
       if (player) {
         // Time updates are handled by backend state sync, but we can update optimistically
         // The backend will send updated game state
+
+        if (data.effect === 'add_time') {
+          const newTime = player.timeRemaining + data.value
+          updatePlayer(data.playerId, { timeRemaining: newTime })
+        }
       }
     })
 
