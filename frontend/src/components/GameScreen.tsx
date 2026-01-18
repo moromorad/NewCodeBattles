@@ -27,6 +27,9 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
     message: string
   }>({ type: null, message: '' })
 
+  // Ticker to force re-renders for timer display
+  const [, setTicker] = useState(0)
+
   const currentPlayer = currentPlayerId ? players[currentPlayerId] : null
   const selectedCard = currentPlayer?.cards.find(c => c.id === selectedCardId) || null
 
@@ -66,6 +69,9 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
     if (!currentPlayer || currentPlayer.isEliminated || !currentPlayer.timerEndTime) return
 
     const interval = setInterval(() => {
+      // Force re-render to update timer display
+      setTicker(prev => prev + 1)
+
       const timeLeft = Math.max(0, Math.floor((currentPlayer.timerEndTime! - Date.now()) / 1000))
 
       if (timeLeft === 0 && !currentPlayer.isEliminated) {
@@ -73,9 +79,6 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
         emitPlayerEliminated()
         updatePlayer(currentPlayerId!, { isEliminated: true, timerEndTime: null })
       }
-
-      // Force re-render by triggering a state update
-      // We don't need to update timerEndTime, just check it
     }, 100) // Check every 100ms for smooth countdown
 
     return () => clearInterval(interval)
