@@ -3,14 +3,17 @@ import { useGameStore } from '../store/gameStore'
 import { PlayerHealthBar } from './PlayerHealthBar'
 import { ProblemCard } from './ProblemCard'
 import { CodeEditor } from './CodeEditor'
+import { TestFeedback } from './TestFeedback'
 
 interface GameScreenProps {
   emitSelectCard: (cardId: string) => void
   emitSubmitSolution: (cardId: string, code: string) => void
   emitPlayerEliminated: () => void
+  emitUpdateTimer: (timeRemaining: number) => void
+  socket: any // Socket instance for listening to events
 }
 
-export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerEliminated }: GameScreenProps) {
+export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerEliminated, emitUpdateTimer, socket }: GameScreenProps) {
   const {
     players,
     currentPlayerId,
@@ -20,20 +23,61 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
     gameStatus
   } = useGameStore()
 
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [testFeedback, setTestFeedback] = useState<{
+    type: 'success' | 'error' | null
+    message: string
+  }>({ type: null, message: '' })
 
   const currentPlayer = currentPlayerId ? players[currentPlayerId] : null
   const selectedCard = currentPlayer?.cards.find(c => c.id === selectedCardId) || null
+
+  // Listen for solution results
+  useEffect(() => {
+    if (!socket) return
+
+    const handleSolutionPassed = (data: any) => {
+      if (data.playerId === currentPlayerId) {
+        setTestFeedback({
+          type: 'success',
+          message: 'Great job! All tests passed. Card completed.'
+        })
+      }
+    }
+
+    const handleSolutionFailed = (data: any) => {
+      if (data.playerId === currentPlayerId) {
+        setTestFeedback({
+          type: 'error',
+          message: data.error || 'Test failed. Check your code and try again.'
+        })
+      }
+    }
+
+    socket.on('solution_passed', handleSolutionPassed)
+    socket.on('solution_failed', handleSolutionFailed)
+
+    return () => {
+      socket.off('solution_passed', handleSolutionPassed)
+      socket.off('solution_failed', handleSolutionFailed)
+    }
+  }, [socket, currentPlayerId])
 
   // Timer countdown
   useEffect(() => {
     if (!currentPlayer || currentPlayer.isEliminated) return
 
+    let tickCount = 0
     const interval = setInterval(() => {
       const player = players[currentPlayerId!]
       if (player && player.timeRemaining > 0) {
         const newTime = Math.max(0, player.timeRemaining - 1)
         updatePlayer(currentPlayerId!, { timeRemaining: newTime })
+
+        tickCount++
+        // Emit timer update every 5 seconds
+        if (tickCount % 5 === 0) {
+          emitUpdateTimer(newTime)
+        }
 
         if (newTime === 0) {
           // Emit player eliminated to backend
@@ -44,7 +88,7 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [currentPlayerId, players, updatePlayer, emitPlayerEliminated, currentPlayer])
+  }, [currentPlayerId, players, updatePlayer, emitPlayerEliminated, emitUpdateTimer, currentPlayer])
 
   const handleCardSelect = (cardId: string) => {
     if (currentPlayer && !currentPlayer.isEliminated) {
@@ -57,8 +101,8 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
   const handleSubmitSolution = (code: string) => {
     if (!selectedCardId || !currentPlayerId) return
 
-    // Clear any previous errors
-    setErrorMessage(null)
+    // Clear any previous feedback
+    setTestFeedback({ type: null, message: '' })
 
     // Emit to backend - backend handles code execution, card removal, and new card addition
     emitSubmitSolution(selectedCardId, code)
@@ -105,12 +149,6 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col p-6">
-        {/* Error Message Display */}
-        {errorMessage && (
-          <div className="mb-4 p-4 bg-red-900/30 border border-red-700 rounded-lg text-red-300">
-            {errorMessage}
-          </div>
-        )}
 
         {/* Selected Problem Card Display */}
         {selectedCard ? (
@@ -119,7 +157,7 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
               <div>
                 <h2 className="text-2xl font-bold mb-2">{selectedCard.problem.title}</h2>
                 <span className={`inline-block px-3 py-1 rounded text-sm font-medium ${selectedCard.problem.difficulty === 'Easy' ? 'bg-green-600' :
-                    selectedCard.problem.difficulty === 'Medium' ? 'bg-yellow-600' : 'bg-red-600'
+                  selectedCard.problem.difficulty === 'Medium' ? 'bg-yellow-600' : 'bg-red-600'
                   }`}>
                   {selectedCard.problem.difficulty}
                 </span>
@@ -184,6 +222,11 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
             <CodeEditor
               onSubmit={handleSubmitSolution}
               disabled={currentPlayer.isEliminated}
+            />
+            <TestFeedback
+              type={testFeedback.type}
+              message={testFeedback.message}
+              onDismiss={() => setTestFeedback({ type: null, message: '' })}
             />
           </div>
         )}

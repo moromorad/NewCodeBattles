@@ -592,6 +592,27 @@ def handle_get_game_state():
     emit('game_state', game_state, room=socket_id)
 
 
+@socketio.on('update_timer')
+def handle_update_timer(data):
+    """Handle timer updates from clients and broadcast to other players"""
+    socket_id = request.sid
+    
+    if socket_id not in socket_to_player:
+        return
+    
+    player_id = socket_to_player[socket_id]
+    time_remaining = data.get('timeRemaining', 0)
+    
+    if player_id in game_state['players']:
+        game_state['players'][player_id]['timeRemaining'] = time_remaining
+        
+        # Broadcast to other players (not self)
+        emit('timer_update', {
+            'playerId': player_id,
+            'timeRemaining': time_remaining
+        }, broadcast=True, include_self=False)
+
+
 @socketio.on('test_message')
 def handle_test_message(data):
     """Handle test messages for connection testing"""

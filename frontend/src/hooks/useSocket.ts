@@ -96,8 +96,6 @@ export const useSocket = () => {
       // Clear selection if it was the current player
       if (data.playerId === useGameStore.getState().currentPlayerId) {
         selectCard(null)
-        // Show success feedback
-        alert(`✅ All Tests Passed!\n\nGreat job! Card completed.`)
       }
     })
 
@@ -109,8 +107,6 @@ export const useSocket = () => {
       testResults: any[]
     }) => {
       console.error('[Socket] Solution failed:', data)
-      // Show visual feedback
-      alert(`❌ Test Failed!\n\nError: ${data.error}\n\nCheck console for details.`)
     })
 
     // Listen for reward applied
@@ -122,14 +118,20 @@ export const useSocket = () => {
     }) => {
       const player = useGameStore.getState().players[data.playerId]
       if (player) {
-        // Time updates are handled by backend state sync, but we can update optimistically
-        // The backend will send updated game state
-
+        // Apply rewards immediately
         if (data.effect === 'add_time') {
           const newTime = player.timeRemaining + data.value
           updatePlayer(data.playerId, { timeRemaining: newTime })
+        } else if (data.effect === 'remove_time') {
+          const newTime = Math.max(0, player.timeRemaining - data.value)
+          updatePlayer(data.playerId, { timeRemaining: newTime })
         }
       }
+    })
+
+    // Listen for timer updates from other players
+    newSocket.on('timer_update', (data: { playerId: string; timeRemaining: number }) => {
+      updatePlayer(data.playerId, { timeRemaining: data.timeRemaining })
     })
 
     // Listen for player eliminated
@@ -196,6 +198,12 @@ export const useSocket = () => {
     }
   }, [socket])
 
+  const emitUpdateTimer = useCallback((timeRemaining: number) => {
+    if (socket?.connected) {
+      socket.emit('update_timer', { timeRemaining })
+    }
+  }, [socket])
+
   const emitPlayerEliminated = useCallback(() => {
     if (socket?.connected) {
       socket.emit('player_eliminated', {})
@@ -210,5 +218,6 @@ export const useSocket = () => {
     emitSelectCard,
     emitSubmitSolution,
     emitPlayerEliminated,
+    emitUpdateTimer,
   }
 }
