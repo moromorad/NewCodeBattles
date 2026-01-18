@@ -78,10 +78,10 @@ export function GameScreen() {
     removeCard(currentPlayerId, selectedCardId)
     selectCard(null) // Clear selection
     
-    // Add new card after a short delay
+    // Once a problem is complete, add new card after a negligible (1ms) delay.
     setTimeout(() => {
       addCard(currentPlayerId, generatedCard)
-    }, 500)
+    }, 1)
   }
 
   if (!currentPlayer) {
@@ -173,7 +173,8 @@ export function GameScreen() {
           </div>
         )}
 
-        {/* Card Hand (only show when no card selected) */}
+        {
+        /* A duplicated "Select a Problem" section. Currently not needed.
         {!selectedCardId && (
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-3">Your Cards ({currentPlayer.cards.length}/5)</h3>
@@ -188,7 +189,8 @@ export function GameScreen() {
               ))}
             </div>
           </div>
-        )}
+        )} */
+        }
       </div>
     </div>
   )
