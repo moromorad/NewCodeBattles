@@ -4,6 +4,7 @@ import { PlayerHealthBar } from './PlayerHealthBar'
 import { ProblemCard } from './ProblemCard'
 import { CodeEditor } from './CodeEditor'
 import { TestFeedback } from './TestFeedback'
+import { PlayerSelectionModal } from './PlayerSelectionModal'
 
 interface GameScreenProps {
   emitSelectCard: (cardId: string) => void
@@ -27,11 +28,35 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
     message: string
   }>({ type: null, message: '' })
 
+  // Celebration state for successful card completion
+  const [celebration, setCelebration] = useState<{
+    show: boolean
+    reward: string
+  }>({ show: false, reward: '' })
+
+  // Player selection state for targeted debuffs
+  const [targetSelection, setTargetSelection] = useState<{
+    show: boolean
+    targets: Array<{ playerId: string, username: string, timeRemaining: number }>
+    rewardValue: number
+  }>({ show: false, targets: [], rewardValue: 0 })
+
+  // Animation state for wave effect
+  const [hasAnimated, setHasAnimated] = useState(false)
+
   // Ticker to force re-renders for timer display
   const [, setTicker] = useState(0)
 
   const currentPlayer = currentPlayerId ? players[currentPlayerId] : null
   const selectedCard = currentPlayer?.cards.find(c => c.id === selectedCardId) || null
+
+  // Trigger animation when cards are first loaded
+  useEffect(() => {
+    if (currentPlayer?.cards && currentPlayer.cards.length > 0 && !hasAnimated) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => setHasAnimated(true), 100)
+    }
+  }, [currentPlayer?.cards, hasAnimated])
 
   // Listen for solution results
   useEffect(() => {
@@ -39,6 +64,20 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
 
     const handleSolutionPassed = (data: any) => {
       if (data.playerId === currentPlayerId) {
+        // Find the card to get the reward info
+        const completedCard = currentPlayer?.cards.find(c => c.id === data.cardId)
+        const rewardText = completedCard?.reward
+          ? `${completedCard.reward.effect.replace('_', ' ')} ${completedCard.reward.value}s`
+          : 'No reward'
+
+        // Show celebration overlay
+        setCelebration({ show: true, reward: rewardText })
+
+        // Auto-dismiss after 2 seconds
+        setTimeout(() => {
+          setCelebration({ show: false, reward: '' })
+        }, 2000)
+
         setTestFeedback({
           type: 'success',
           message: 'Great job! All tests passed. Card completed.'
@@ -55,14 +94,27 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
       }
     }
 
+    const handleTargetSelectionRequired = (data: any) => {
+      // Show player selection modal after celebration
+      setTimeout(() => {
+        setTargetSelection({
+          show: true,
+          targets: data.availableTargets,
+          rewardValue: data.value
+        })
+      }, 2100) // Show after celebration (2s) + small buffer
+    }
+
     socket.on('solution_passed', handleSolutionPassed)
     socket.on('solution_failed', handleSolutionFailed)
+    socket.on('target_selection_required', handleTargetSelectionRequired)
 
     return () => {
       socket.off('solution_passed', handleSolutionPassed)
       socket.off('solution_failed', handleSolutionFailed)
+      socket.off('target_selection_required', handleTargetSelectionRequired)
     }
-  }, [socket, currentPlayerId])
+  }, [socket, currentPlayerId, currentPlayer])
 
   // Timer check - runs every 100ms for smooth updates
   useEffect(() => {
@@ -102,6 +154,14 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
     emitSubmitSolution(selectedCardId, code)
   }
 
+  const handleTargetSelect = (targetId: string) => {
+    // Emit socket event with selected target
+    socket.emit('apply_targeted_debuff', { targetPlayerId: targetId })
+
+    // Close modal
+    setTargetSelection({ show: false, targets: [], rewardValue: 0 })
+  }
+
   // Listen for solution failed event (handled by useSocket, but we can show error here)
   // Error handling is done in useSocket hook, but we could add a listener here if needed
 
@@ -129,6 +189,32 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
+      {/* Celebration Overlay */}
+      {celebration.show && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div className="bg-gradient-to-br from-green-400 to-emerald-500 text-white px-12 py-8 rounded-2xl shadow-2xl transform scale-100 animate-bounce">
+            <div className="text-center">
+              <div className="text-6xl mb-4">🎉</div>
+              <h2 className="text-3xl font-bold mb-2">All Tests Passed!</h2>
+              <div className="text-xl font-semibold">
+                <span className="bg-white/20 px-4 py-2 rounded-lg inline-block">
+                  Reward: {celebration.reward}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Player Selection Modal */}
+      {targetSelection.show && (
+        <PlayerSelectionModal
+          targets={targetSelection.targets}
+          rewardValue={targetSelection.rewardValue}
+          onSelect={handleTargetSelect}
+        />
+      )}
+
       {/* Left Sidebar - Player Health Bars */}
       <div className="w-80 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Players</h2>
@@ -195,17 +281,35 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
             </button>
           </div>
         ) : (
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold mb-4">Select a Problem</h2>
-            <div className="grid grid-cols-5 gap-4">
-              {cardsToShow.map((card) => (
-                <ProblemCard
-                  key={card.id}
-                  card={card}
-                  isSelected={card.id === selectedCardId}
-                  onSelect={() => handleCardSelect(card.id)}
-                />
-              ))}
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <h2 className="text-xl font-semibold mb-8">Select a Problem</h2>
+            <div className="flex gap-4 justify-center items-end">
+              {cardsToShow.map((card, index) => {
+                // Calculate the offset from center for each card
+                const totalCards = cardsToShow.length
+                const centerIndex = (totalCards - 1) / 2
+                const offsetFromCenter = index - centerIndex
+
+                return (
+                  <div
+                    key={card.id}
+                    className="transition-all duration-700 ease-out"
+                    style={{
+                      transform: hasAnimated
+                        ? 'translate(0, 0) rotate(0deg)'
+                        : `translate(${-offsetFromCenter * 200}px, 500px) rotate(0deg)`,
+                      transitionDelay: hasAnimated ? `${index * 150}ms` : '0ms'
+                    }}
+                  >
+                    <ProblemCard
+                      card={card}
+                      isSelected={card.id === selectedCardId}
+                      onSelect={() => handleCardSelect(card.id)}
+                      index={index}
+                    />
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

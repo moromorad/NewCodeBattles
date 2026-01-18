@@ -62,6 +62,7 @@ PROBLEM_TEMPLATES = [
                 {'input': {'s': '(]'}, 'expectedOutput': False}
             ]
         },
+        'reward': {'type': 'buff', 'target': 'self', 'effect': 'add_time', 'value': 25},
         'challenge': {'type': 'time_limit', 'value': 120}
     },
     {
@@ -88,6 +89,7 @@ PROBLEM_TEMPLATES = [
                 {'input': {'s': 'cbbd'}, 'expectedOutput': 'bb'}
             ]
         },
+        'reward': {'type': 'buff', 'target': 'self', 'effect': 'add_time', 'value': 45},
         'challenge': {'type': 'complexity', 'value': 'O(n)'}
     },
     {
@@ -101,7 +103,7 @@ PROBLEM_TEMPLATES = [
                 {'input': {'height': [1, 1]}, 'expectedOutput': 1}
             ]
         },
-        'reward': {'type': 'buff', 'target': 'self', 'effect': 'freeze_time', 'value': 60}
+        'reward': {'type': 'debuff', 'target': 'all', 'effect': 'remove_time_all', 'value': 30}
     },
     {
         'problem': {
@@ -114,6 +116,7 @@ PROBLEM_TEMPLATES = [
                 {'input': {'nums': []}, 'expectedOutput': []}
             ]
         },
+        'reward': {'type': 'debuff', 'target': 'targeted', 'effect': 'remove_time_targeted', 'value': 50},
         'challenge': {'type': 'line_limit', 'value': 30}
     },
     {
@@ -140,6 +143,7 @@ PROBLEM_TEMPLATES = [
                 {'input': {'nums': [0, 1, 0, 3, 2, 3]}, 'expectedOutput': 4}
             ]
         },
+        'reward': {'type': 'buff', 'target': 'self', 'effect': 'add_time', 'value': 45},
         'challenge': {'type': 'time_limit', 'value': 180}
     }
 ]
@@ -288,16 +292,49 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
                 'fromPlayer': player_id
             }, broadcast=True)
     
-    elif reward['effect'] == 'freeze_time':
-        if player_id in game_state['players']:
-            current_time = time.time()
-            game_state['players'][player_id]['isTimeFrozen'] = True
-            game_state['players'][player_id]['frozenUntil'] = current_time + reward['value']
+    elif reward['effect'] == 'remove_time_targeted':
+        # Request player to choose which opponent to target
+        other_players = [pid for pid in game_state['players'].keys() 
+                        if pid != player_id and not game_state['players'][pid]['isEliminated']]
+        if other_players:
+            # Store pending reward in player state
+            game_state['players'][player_id]['pendingTargetedReward'] = reward
+            
+            # Emit event to player requesting target selection
+            emit('target_selection_required', {
+                'effect': reward['effect'],
+                'value': reward['value'],
+                'availableTargets': [{
+                    'playerId': pid,
+                    'username': game_state['players'][pid]['username'],
+                    'timeRemaining': max(0, int((game_state['players'][pid]['timerEndTime'] - time.time() * 1000) / 1000))
+                } for pid in other_players]
+            }, room=game_state['players'][player_id]['socket_id'])
+    
+    elif reward['effect'] == 'remove_time_all':
+        # Remove time from ALL other players
+        other_players = [pid for pid in game_state['players'].keys() 
+                        if pid != player_id and not game_state['players'][pid]['isEliminated']]
+        affected_players = []
+        for target_id in other_players:
+            game_state['players'][target_id]['timerEndTime'] = max(
+                time.time() * 1000,
+                game_state['players'][target_id]['timerEndTime'] - (reward['value'] * 1000)
+            )
+            affected_players.append({
+                'playerId': target_id,
+                'username': game_state['players'][target_id]['username']
+            })
+        
+        if affected_players:
             emit('reward_applied', {
-                'playerId': player_id,
-                'effect': 'freeze_time',
-                'value': reward['value']
+                'effect': 'remove_time_all',
+                'value': reward['value'],
+                'fromPlayer': player_id,
+                'affectedPlayers': affected_players
             }, broadcast=True)
+
+
 
 
 def check_win_condition():
@@ -592,6 +629,65 @@ def handle_player_eliminated(data):
     
     # Check win condition
     check_win_condition()
+
+@socketio.on('apply_targeted_debuff')
+def handle_apply_targeted_debuff(data):
+    """Handle player selection for targeted debuff"""
+    socket_id = request.sid
+    
+    if socket_id not in socket_to_player:
+        emit('error', {'message': 'Not connected'})
+        return
+    
+    player_id = socket_to_player[socket_id]
+    target_id = data.get('targetPlayerId')
+    
+    if player_id not in game_state['players']:
+        emit('error', {'message': 'Player not found'})
+        return
+    
+    player = game_state['players'][player_id]
+    
+    # Check if player has a pending targeted reward
+    if 'pendingTargetedReward' not in player or not player['pendingTargetedReward']:
+        emit('error', {'message': 'No pending targeted reward'})
+        return
+    
+    # Validate target is a valid opponent
+    if target_id not in game_state['players']:
+        emit('error', {'message': 'Invalid target player'})
+        return
+    
+    target_player = game_state['players'][target_id]
+    
+    if target_id == player_id:
+        emit('error', {'message': 'Cannot target yourself'})
+        return
+    
+    if target_player['isEliminated']:
+        emit('error', {'message': 'Cannot target eliminated player'})
+        return
+    
+    # Apply the debuff
+    reward = player['pendingTargetedReward']
+    game_state['players'][target_id]['timerEndTime'] = max(
+        time.time() * 1000,
+        game_state['players'][target_id]['timerEndTime'] - (reward['value'] * 1000)
+    )
+    
+    # Clear pending reward
+    player['pendingTargetedReward'] = None
+    
+    # Broadcast the reward application
+    emit('reward_applied', {
+        'playerId': target_id,
+        'effect': 'remove_time_targeted',
+        'value': reward['value'],
+        'fromPlayer': player_id,
+        'targetName': game_state['players'][target_id]['username']
+    }, broadcast=True)
+    
+    print(f'Player {player["username"]} targeted {target_player["username"]} with {reward["value"]}s debuff')
 
 
 @socketio.on('get_game_state')
