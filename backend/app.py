@@ -261,7 +261,8 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
     """Apply reward to player(s)"""
     if reward['effect'] == 'add_time':
         if player_id in game_state['players']:
-            game_state['players'][player_id]['timerEndTime'] += reward['value']
+            # reward['value'] is in seconds, timerEndTime is in milliseconds
+            game_state['players'][player_id]['timerEndTime'] += reward['value'] * 1000
             emit('reward_applied', {
                 'playerId': player_id,
                 'effect': 'add_time',
@@ -275,9 +276,10 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
         if other_players:
             import random
             target_id = random.choice(other_players)
+            # reward['value'] is in seconds, timerEndTime is in milliseconds
             game_state['players'][target_id]['timerEndTime'] = max(
-                time.time(),  # Can't go below current time (0 seconds left)
-                game_state['players'][target_id]['timerEndTime'] - reward['value']
+                time.time() * 1000,  # Current time in milliseconds
+                game_state['players'][target_id]['timerEndTime'] - (reward['value'] * 1000)
             )
             emit('reward_applied', {
                 'playerId': target_id,
@@ -420,8 +422,8 @@ def handle_start_game():
     # Set game status
     game_state['gameStatus'] = 'playing'
     
-    # Set timer end time for all players (5 minutes from now)
-    timer_end_time = time.time() + 300
+    # Set timer end time for all players (5 minutes from now, in milliseconds)
+    timer_end_time = (time.time() + 300) * 1000  # Convert to milliseconds for JS
     for pid in game_state['players'].keys():
         game_state['players'][pid]['timerEndTime'] = timer_end_time
     

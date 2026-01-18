@@ -118,9 +118,9 @@ export const useSocket = () => {
     }) => {
       const player = useGameStore.getState().players[data.playerId]
       if (player && player.timerEndTime) {
-        // Apply rewards by adjusting timer end time
+        // Backend sends value in seconds, but timerEndTime is in milliseconds
         if (data.effect === 'add_time') {
-          const newEndTime = player.timerEndTime + (data.value * 1000) // Convert to ms
+          const newEndTime = player.timerEndTime + (data.value * 1000)
           updatePlayer(data.playerId, { timerEndTime: newEndTime })
         } else if (data.effect === 'remove_time') {
           const newEndTime = Math.max(Date.now(), player.timerEndTime - (data.value * 1000))
