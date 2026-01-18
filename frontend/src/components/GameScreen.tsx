@@ -56,6 +56,9 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
   // Ticker to force re-renders for timer display
   const [, setTicker] = useState(0)
 
+  // Store final times when game ends
+  const [finalTimes, setFinalTimes] = useState<Record<string, number>>({})
+
   const currentPlayer = currentPlayerId ? players[currentPlayerId] : null
   const selectedCard = currentPlayer?.cards.find(c => c.id === selectedCardId) || null
 
@@ -155,6 +158,8 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
 
   // Timer check - runs every 100ms for smooth updates
   useEffect(() => {
+    // Stop timer updates when game ends
+    if (gameStatus === 'ended') return
     if (!currentPlayer || currentPlayer.isEliminated || !currentPlayer.timerEndTime) return
 
     const interval = setInterval(() => {
@@ -171,7 +176,7 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
     }, 100) // Check every 100ms for smooth countdown
 
     return () => clearInterval(interval)
-  }, [currentPlayerId, currentPlayer, emitPlayerEliminated, updatePlayer])
+  }, [currentPlayerId, currentPlayer, emitPlayerEliminated, updatePlayer, gameStatus])
 
   const handleCardSelect = (cardId: string) => {
     if (currentPlayer && !currentPlayer.isEliminated) {
@@ -209,6 +214,21 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
   // When a card is selected, hide other cards
   const cardsToShow = selectedCardId ? currentPlayer.cards.filter(c => c.id === selectedCardId) : currentPlayer.cards
 
+  // Capture final times when game ends
+  useEffect(() => {
+    if (gameStatus === 'ended' && Object.keys(finalTimes).length === 0) {
+      const times: Record<string, number> = {}
+      Object.values(players).forEach(player => {
+        if (player.timerEndTime && !player.isEliminated) {
+          times[player.id] = Math.max(0, Math.floor((player.timerEndTime - Date.now()) / 1000))
+        } else {
+          times[player.id] = 0
+        }
+      })
+      setFinalTimes(times)
+    }
+  }, [gameStatus, players, finalTimes])
+
   // Show winner screen if game ended
   if (gameStatus === 'ended') {
     // Rank players: non-eliminated first (by time remaining), then eliminated
@@ -239,9 +259,8 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
             <div className="space-y-3">
               {rankedPlayers.map((player, index) => {
                 const isCurrentPlayer = player.id === currentPlayerId
-                const timeRemaining = player.timerEndTime
-                  ? Math.max(0, Math.floor((player.timerEndTime - Date.now()) / 1000))
-                  : 0
+                // Use captured final time instead of calculating dynamically
+                const timeRemaining = finalTimes[player.id] || 0
                 const minutes = Math.floor(timeRemaining / 60)
                 const seconds = timeRemaining % 60
 
@@ -253,9 +272,9 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
                   >
                     <div className="flex items-center gap-4">
                       <div className={`text-2xl font-bold w-8 ${index === 0 ? 'text-yellow-400' :
-                          index === 1 ? 'text-gray-300' :
-                            index === 2 ? 'text-orange-400' :
-                              'text-gray-500'
+                        index === 1 ? 'text-gray-300' :
+                          index === 2 ? 'text-orange-400' :
+                            'text-gray-500'
                         }`}>
                         {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                       </div>
