@@ -44,6 +44,15 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
   // Animation state for wave effect
   const [hasAnimated, setHasAnimated] = useState(false)
 
+  // Card animation state for burn/deal effects
+  const [cardAnimations, setCardAnimations] = useState<{
+    burningCardId: string | null
+    newCardId: string | null
+  }>({ burningCardId: null, newCardId: null })
+
+  // Keep burning card in DOM during animation
+  const [burningCard, setBurningCard] = useState<any>(null)
+
   // Ticker to force re-renders for timer display
   const [, setTicker] = useState(0)
 
@@ -70,10 +79,38 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
           ? `${completedCard.reward.effect.replace('_', ' ')} ${completedCard.reward.value}s`
           : 'No reward'
 
+        const completedCardId = data.cardId
+        const newCardId = data.newCard?.id
+
+        // Save the completed card for burn animation (before it's removed from state)
+        if (completedCard) {
+          setBurningCard(completedCard)
+        }
+
+        // Start burn animation immediately (while card still exists)
+        setCardAnimations({
+          burningCardId: completedCardId,
+          newCardId: null
+        })
+
         // Show celebration overlay
         setCelebration({ show: true, reward: rewardText })
 
-        // Auto-dismiss after 2 seconds
+        // After burn completes (1s), clear burning and start deal animation
+        setTimeout(() => {
+          setBurningCard(null) // Remove burning card from DOM
+          setCardAnimations({
+            burningCardId: null,
+            newCardId: newCardId
+          })
+
+          // Clear deal animation after it completes
+          setTimeout(() => {
+            setCardAnimations({ burningCardId: null, newCardId: null })
+          }, 800) // deal animation duration
+        }, 1000) // burn animation duration
+
+        // Auto-dismiss celebration after 2 seconds
         setTimeout(() => {
           setCelebration({ show: false, reward: '' })
         }, 2000)
@@ -215,6 +252,24 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
         />
       )}
 
+      {/* Burning Card Overlay - rendered separately to ensure animation plays */}
+      {burningCard && (
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-40">
+          <div className="flex gap-4">
+            <div className="animate-burn">
+              <ProblemCard
+                card={burningCard}
+                isSelected={false}
+                onSelect={() => { }}
+                index={0}
+                isBurning={true}
+                isNewCard={false}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Left Sidebar - Player Health Bars */}
       <div className="w-80 bg-gray-800 border-r border-gray-700 p-4 overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Players</h2>
@@ -306,6 +361,8 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
                       isSelected={card.id === selectedCardId}
                       onSelect={() => handleCardSelect(card.id)}
                       index={index}
+                      isBurning={card.id === cardAnimations.burningCardId}
+                      isNewCard={card.id === cardAnimations.newCardId}
                     />
                   </div>
                 )
