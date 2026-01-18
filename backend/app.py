@@ -318,6 +318,7 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
                     'timeRemaining': max(0, int((game_state['players'][pid]['timerEndTime'] - time.time() * 1000) / 1000))
                 } for pid in other_players]
             }, room=game_state['players'][player_id]['socket_id'])
+            print(f'Sent target selection request to {game_state["players"][player_id]["username"]}')
     
     elif reward['effect'] == 'remove_time_all':
         # Remove time from ALL other players
@@ -341,6 +342,7 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
                 'fromPlayer': player_id,
                 'affectedPlayers': affected_players
             }, broadcast=True)
+            print(f'Applied remove_time_all: {reward["value"]}s from {len(affected_players)} players')
 
 
 

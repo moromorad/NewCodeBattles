@@ -111,21 +111,40 @@ export const useSocket = () => {
 
     // Listen for reward applied
     newSocket.on('reward_applied', (data: {
-      playerId: string
+      playerId?: string
       effect: string
       value: number
       fromPlayer?: string
+      affectedPlayers?: Array<{ playerId: string, username: string }>
     }) => {
-      const player = useGameStore.getState().players[data.playerId]
-      if (player && player.timerEndTime) {
-        // Backend sends value in seconds, but timerEndTime is in milliseconds
-        if (data.effect === 'add_time') {
+      // Handle different reward types
+      if (data.effect === 'add_time' && data.playerId) {
+        const player = useGameStore.getState().players[data.playerId]
+        if (player && player.timerEndTime) {
           const newEndTime = player.timerEndTime + (data.value * 1000)
           updatePlayer(data.playerId, { timerEndTime: newEndTime })
-        } else if (data.effect === 'remove_time') {
+        }
+      } else if (data.effect === 'remove_time' && data.playerId) {
+        const player = useGameStore.getState().players[data.playerId]
+        if (player && player.timerEndTime) {
           const newEndTime = Math.max(Date.now(), player.timerEndTime - (data.value * 1000))
           updatePlayer(data.playerId, { timerEndTime: newEndTime })
         }
+      } else if (data.effect === 'remove_time_targeted' && data.playerId) {
+        const player = useGameStore.getState().players[data.playerId]
+        if (player && player.timerEndTime) {
+          const newEndTime = Math.max(Date.now(), player.timerEndTime - (data.value * 1000))
+          updatePlayer(data.playerId, { timerEndTime: newEndTime })
+        }
+      } else if (data.effect === 'remove_time_all' && data.affectedPlayers) {
+        // Update all affected players
+        data.affectedPlayers.forEach(({ playerId }) => {
+          const player = useGameStore.getState().players[playerId]
+          if (player && player.timerEndTime) {
+            const newEndTime = Math.max(Date.now(), player.timerEndTime - (data.value * 1000))
+            updatePlayer(playerId, { timerEndTime: newEndTime })
+          }
+        })
       }
     })
 
