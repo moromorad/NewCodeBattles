@@ -283,7 +283,7 @@ print(json.dumps(test_results))
         }
 
 
-def apply_reward(player_id: str, reward: Dict[str, Any]):
+def apply_reward(player_id: str, reward: Dict[str, Any], is_debug: bool = False):
     """Apply reward to player(s)"""
     if reward['effect'] == 'add_time':
         if player_id in game_state['players']:
@@ -297,8 +297,15 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
     
     elif reward['effect'] == 'remove_time':
         # Select random other player
-        other_players = [pid for pid in game_state['players'].keys() 
-                        if pid != player_id and not game_state['players'][pid]['isEliminated']]
+        candidates = [pid for pid in game_state['players'].keys() if not game_state['players'][pid]['isEliminated']]
+        
+        # In normal mode, exclude self. In debug mode, allow self if no others exist.
+        other_players = [pid for pid in candidates if pid != player_id]
+        
+        if is_debug and not other_players and player_id in candidates:
+            other_players = [player_id]
+            print("Debug: Targeting self for remove_time")
+            
         if other_players:
             import random
             target_id = random.choice(other_players)
@@ -316,8 +323,12 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
     
     elif reward['effect'] == 'remove_time_targeted':
         # Request player to choose which opponent to target
-        other_players = [pid for pid in game_state['players'].keys() 
-                        if pid != player_id and not game_state['players'][pid]['isEliminated']]
+        candidates = [pid for pid in game_state['players'].keys() if not game_state['players'][pid]['isEliminated']]
+        other_players = [pid for pid in candidates if pid != player_id]
+        
+        if is_debug and not other_players and player_id in candidates:
+            other_players = [player_id]
+            
         if other_players:
             # Store pending reward in player state
             game_state['players'][player_id]['pendingTargetedReward'] = reward
@@ -336,8 +347,12 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
     
     elif reward['effect'] == 'flashbang_targeted':
         # Request player to choose which opponent to flashbang
-        other_players = [pid for pid in game_state['players'].keys() 
-                        if pid != player_id and not game_state['players'][pid]['isEliminated']]
+        candidates = [pid for pid in game_state['players'].keys() if not game_state['players'][pid]['isEliminated']]
+        other_players = [pid for pid in candidates if pid != player_id]
+        
+        if is_debug and not other_players and player_id in candidates:
+            other_players = [player_id]
+            
         if other_players:
             # Store pending reward in player state
             game_state['players'][player_id]['pendingTargetedReward'] = reward
@@ -356,18 +371,23 @@ def apply_reward(player_id: str, reward: Dict[str, Any]):
     
     elif reward['effect'] == 'remove_time_all':
         # Remove time from ALL other players
-        other_players = [pid for pid in game_state['players'].keys() 
-                        if pid != player_id and not game_state['players'][pid]['isEliminated']]
-        affected_players = []
-        for target_id in other_players:
-            game_state['players'][target_id]['timerEndTime'] = max(
-                time.time() * 1000,
-                game_state['players'][target_id]['timerEndTime'] - (reward['value'] * 1000)
-            )
-            affected_players.append({
-                'playerId': target_id,
-                'username': game_state['players'][target_id]['username']
-            })
+        candidates = [pid for pid in game_state['players'].keys() if not game_state['players'][pid]['isEliminated']]
+        other_players = [pid for pid in candidates if pid != player_id]
+        
+        if is_debug and not other_players and player_id in candidates:
+            other_players = [player_id]
+            
+        if other_players:
+            affected_players = []
+            for target_id in other_players:
+                game_state['players'][target_id]['timerEndTime'] = max(
+                    time.time() * 1000,
+                    game_state['players'][target_id]['timerEndTime'] - (reward['value'] * 1000)
+                )
+                affected_players.append({
+                    'playerId': target_id,
+                    'username': game_state['players'][target_id]['username']
+                })
         
         if affected_players:
             emit('reward_applied', {
@@ -764,7 +784,7 @@ def handle_debug_trigger_reward(data):
     
     if player_id in game_state['players'] and reward:
         print(f'Debug reward triggered by {game_state["players"][player_id]["username"]}: {reward["effect"]}')
-        apply_reward(player_id, reward)
+        apply_reward(player_id, reward, is_debug=True)
 
 
 

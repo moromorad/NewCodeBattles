@@ -1,11 +1,20 @@
 interface DebugMenuProps {
     onTriggerReward: (rewardType: string) => void
+    onClose: () => void
 }
 
-export function DebugMenu({ onTriggerReward }: DebugMenuProps) {
+export function DebugMenu({ onTriggerReward, onClose }: DebugMenuProps) {
     return (
-        <div className="fixed bottom-4 right-4 bg-gray-800 border-2 border-purple-500 rounded-lg p-4 shadow-2xl z-50 max-w-xs">
-            <h3 className="text-lg font-bold mb-3 text-purple-400">🐛 Debug Menu</h3>
+        <div className="fixed bottom-16 right-4 bg-gray-800 border-2 border-purple-500 rounded-lg p-4 shadow-2xl z-50 max-w-xs">
+            <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-bold text-purple-400">🐛 Debug Menu</h3>
+                <button
+                    onClick={onClose}
+                    className="text-gray-400 hover:text-white transition-colors text-xl font-bold px-2"
+                >
+                    ×
+                </button>
+            </div>
             <div className="space-y-2">
                 <button
                     onClick={() => onTriggerReward('add_time')}

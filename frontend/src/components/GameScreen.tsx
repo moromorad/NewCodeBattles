@@ -366,7 +366,10 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
 
       {/* Debug Menu */}
       {showDebugMenu && (
-        <DebugMenu onTriggerReward={handleDebugReward} />
+        <DebugMenu
+          onTriggerReward={handleDebugReward}
+          onClose={() => setShowDebugMenu(false)}
+        />
       )}
 
       {/* Player Selection Modal */}
