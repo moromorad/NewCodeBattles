@@ -131,6 +131,7 @@ export const useSocket = () => {
 
     // Listen for timer updates from other players
     newSocket.on('timer_update', (data: { playerId: string; timeRemaining: number }) => {
+      console.log('[Socket] timer_update received:', data)
       updatePlayer(data.playerId, { timeRemaining: data.timeRemaining })
     })
 
@@ -200,6 +201,7 @@ export const useSocket = () => {
 
   const emitUpdateTimer = useCallback((timeRemaining: number) => {
     if (socket?.connected) {
+      console.log('[Socket] Emitting timer update:', timeRemaining)
       socket.emit('update_timer', { timeRemaining })
     }
   }, [socket])

@@ -66,18 +66,14 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
   useEffect(() => {
     if (!currentPlayer || currentPlayer.isEliminated) return
 
-    let tickCount = 0
     const interval = setInterval(() => {
       const player = players[currentPlayerId!]
       if (player && player.timeRemaining > 0) {
         const newTime = Math.max(0, player.timeRemaining - 1)
         updatePlayer(currentPlayerId!, { timeRemaining: newTime })
 
-        tickCount++
-        // Emit timer update every 5 seconds
-        if (tickCount % 5 === 0) {
-          emitUpdateTimer(newTime)
-        }
+        // Emit timer update every second for real-time sync
+        emitUpdateTimer(newTime)
 
         if (newTime === 0) {
           // Emit player eliminated to backend
