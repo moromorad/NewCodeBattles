@@ -211,14 +211,73 @@ export function GameScreen({ emitSelectCard, emitSubmitSolution, emitPlayerElimi
 
   // Show winner screen if game ended
   if (gameStatus === 'ended') {
-    const winner = Object.values(players).find(p => p.id === currentPlayerId && !p.isEliminated)
+    // Rank players: non-eliminated first (by time remaining), then eliminated
+    const rankedPlayers = Object.values(players).sort((a, b) => {
+      if (!a.isEliminated && b.isEliminated) return -1
+      if (a.isEliminated && !b.isEliminated) return 1
+      if (!a.isEliminated && !b.isEliminated) {
+        return (b.timerEndTime || 0) - (a.timerEndTime || 0)
+      }
+      return 0
+    })
+
+    const currentPlayerRank = rankedPlayers.findIndex(p => p.id === currentPlayerId) + 1
+
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold mb-4">Game Over!</h1>
-          <p className="text-2xl text-gray-400">
-            {winner ? 'You Won! 🎉' : 'Game Ended'}
-          </p>
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-8">
+        <div className="max-w-2xl w-full">
+          <div className="text-center mb-8">
+            <h1 className="text-6xl font-bold mb-4">Game Over!</h1>
+            {currentPlayerRank === 1 && <p className="text-3xl text-yellow-400 mb-2">🎉 You Won! 🎉</p>}
+            <p className="text-xl text-gray-400">
+              You placed #{currentPlayerRank} out of {rankedPlayers.length}
+            </p>
+          </div>
+
+          <div className="bg-gray-800 rounded-xl p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4 text-center">Final Rankings</h2>
+            <div className="space-y-3">
+              {rankedPlayers.map((player, index) => {
+                const isCurrentPlayer = player.id === currentPlayerId
+                const timeRemaining = player.timerEndTime
+                  ? Math.max(0, Math.floor((player.timerEndTime - Date.now()) / 1000))
+                  : 0
+                const minutes = Math.floor(timeRemaining / 60)
+                const seconds = timeRemaining % 60
+
+                return (
+                  <div
+                    key={player.id}
+                    className={`flex items-center justify-between p-4 rounded-lg ${isCurrentPlayer ? 'bg-blue-600 border-2 border-blue-400' : 'bg-gray-700'
+                      }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`text-2xl font-bold w-8 ${index === 0 ? 'text-yellow-400' :
+                          index === 1 ? 'text-gray-300' :
+                            index === 2 ? 'text-orange-400' :
+                              'text-gray-500'
+                        }`}>
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-lg">{player.username}</p>
+                        {player.isEliminated && <p className="text-sm text-red-400">Eliminated</p>}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {!player.isEliminated ? (
+                        <p className="text-xl font-mono text-green-400">
+                          {minutes}:{String(seconds).padStart(2, '0')}
+                        </p>
+                      ) : (
+                        <p className="text-gray-500">0:00</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </div>
     )
