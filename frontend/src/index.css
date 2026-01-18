@@ -1,3 +1,55 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  /* Subtle Cyberpunk Palette */
+  --bg-deep: #09090b;
+  /* Zinc 950 */
+  --bg-surface: #18181b;
+  /* Zinc 900 */
+  --bg-panel: #27272a;
+  /* Zinc 800 */
+
+  --accent-primary: #3b82f6;
+  /* Blue 500 */
+  --accent-glow: rgba(59, 130, 246, 0.5);
+
+  --text-primary: #e4e4e7;
+  /* Zinc 200 */
+  --text-secondary: #a1a1aa;
+  /* Zinc 400 */
+}
+
+body {
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  /* Clean modern font */
+  overflow: hidden;
+}
+
+/* LeetCode-style Splitter */
+.panel {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--bg-panel);
+  border-radius: 8px;
+}
+
+/* Soft Glows */
+.neon-border {
+  border: 1px solid var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.btn-primary {
+  background-color: var(--accent-primary);
+  color: white;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #2563eb;
+  box-shadow: 0 0 15px var(--accent-glow);
+}

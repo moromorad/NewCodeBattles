@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 from src.game.GameState import GameState
 from src.game.Player import Player

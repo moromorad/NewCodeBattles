@@ -52,20 +52,32 @@ async def join_game(sid, data):
     player = game_manager.join_game(room, sid, username)
     if player:
         await sio.enter_room(sid, room)
-        # Send initial state
         game = game_manager.games[room]
         
-        # Notify this player
+        # Send initial personal state
         await sio.emit('game_joined', {
             'room': room, 
             'player_id': player.id,
-            'hand': [c.to_dict() for c in player.hand]
+            'hand': [c.to_dict() for c in player.hand],
+            'is_host': len(game.players) == 1 # First player is host
         }, to=sid)
         
-        # Notify others
-        await sio.emit('player_joined', {'username': username}, room=room)
+        # Broadcast full game state to everyone so they see the new player
+        await sio.emit('game_update', game.get_state(), room=room)
     else:
         await sio.emit('error', {'message': 'Game not found'}, to=sid)
+
+@sio.event
+async def start_game(sid, data):
+    game = game_manager.get_game_by_sid(sid)
+    if not game: return
+    
+    # Verify host? For now, anyone can start, or we rely on frontend to hide button
+    # Ideally, GameState tracks 'host_id'.
+    
+    game.start_game()
+    await sio.emit('game_started', {'start_time': game.start_time}, room=game.id)
+    await sio.emit('game_update', game.get_state(), room=game.id)
 
 @sio.event
 async def play_card(sid, data):

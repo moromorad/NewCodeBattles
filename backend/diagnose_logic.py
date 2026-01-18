@@ -1,4 +1,3 @@
-import sys
 import json
 try:
     from src.game.CardGenerator import generate_hand

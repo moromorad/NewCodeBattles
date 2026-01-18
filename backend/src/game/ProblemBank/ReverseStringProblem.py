@@ -4,6 +4,7 @@ AbstractProblem(
     id="rev_str", 
     quest="No quest", 
     reward="BUFF_SELF",
-    description="def solve(s):\n    # Return the reversed string\n    pass",
-    testCases=[("hello", "olleh"), ("abc", "cba")]
+    setup="def solve(s):\n    # Return the reversed string\n    pass",
+    description="Implement this function such that it returns the reversed string",
+    testCases=[("hello", "olleh"), ("abc", "cba ")]
 )

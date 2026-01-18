@@ -16,7 +16,7 @@ class Player:
     def to_dict(self):
         return {
             "id": self.id,
-            "name": self.name,
+            "username": self.name,
             "time_remaining": self.time_remaining,
             "isAlive": self.isAlive,
             # Don't send full hand to everyone if we want hidden hands, but for now send all

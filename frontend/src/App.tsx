@@ -1,24 +1,33 @@
-import { useGameStore } from './store/gameStore'
-import { StartMenu } from './components/StartMenu'
+import { useEffect } from 'react'
+import { useGameStore } from './store/useGameStore'
 import { Lobby } from './components/Lobby'
-import { GameScreen } from './components/GameScreen'
+import { GameView } from './components/GameView'
+import { WaitingRoom } from './components/WaitingRoom'
 
 function App() {
-  const gameStatus = useGameStore((state) => state.gameStatus)
+  const { connect, isConnected, roomId, gameState } = useGameStore()
 
-  if (gameStatus === 'menu') {
-    return <StartMenu />
-  }
+  useEffect(() => {
+    connect()
+  }, [connect])
 
-  if (gameStatus === 'lobby') {
-    return <Lobby />
-  }
+  return (
+    <div className="min-h-screen bg-[var(--bg-deep)]">
+      {!isConnected && (
+        <div className="fixed top-2 left-2 text-red-500 text-xs font-mono z-50 bg-black px-2">OFFLINE</div>
+      )}
 
-  if (gameStatus === 'playing' || gameStatus === 'ended') {
-    return <GameScreen />
-  }
-
-  return <StartMenu />
+      {!roomId ? (
+        <Lobby />
+      ) : (
+        !gameState?.started ? (
+          <WaitingRoom />
+        ) : (
+          <GameView />
+        )
+      )}
+    </div>
+  )
 }
 
 export default App

@@ -1,54 +1,95 @@
-import { useGameStore } from '../store/gameStore'
+import React, { useState } from 'react';
+import { useGameStore } from '../store/useGameStore';
 
-export function Lobby() {
-  const { players, currentPlayerId, startGame } = useGameStore()
-  const playerList = Object.values(players)
+export const Lobby = () => {
+  const { joinGame } = useGameStore();
 
-  const handleStartGame = () => {
-    startGame()
-  }
+  // UI State: 'intro' | 'host' | 'join'
+  const [view, setView] = useState<'intro' | 'host' | 'join'>('intro');
+  const [username, setUsername] = useState('');
+  const [roomCode, setRoomCode] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
 
-  const isHost = currentPlayerId && playerList.length > 0 && playerList[0].id === currentPlayerId
+  const handleHost = () => {
+    if (!username) return alert("Please enter a username");
+    setIsConnecting(true);
+    const newRoom = Math.random().toString(36).substring(2, 8).toUpperCase();
+    joinGame(username, newRoom);
+  };
+
+  const handleJoin = () => {
+    if (!username || !roomCode) return alert("Please fill in all fields");
+    joinGame(username, roomCode.toUpperCase());
+  };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-center">Game Lobby</h1>
+    <div className="flex flex-col items-center justify-center h-screen w-screen bg-[var(--bg-deep)] text-[var(--text-primary)]">
 
-        <div className="bg-gray-800 rounded-lg p-6 mb-6">
-          <h2 className="text-2xl font-semibold mb-4">Players ({playerList.length})</h2>
-          <div className="space-y-2">
-            {playerList.map((player) => (
-              <div
-                key={player.id}
-                className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg"
-              >
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="font-medium">{player.username}</span>
-                {player.id === currentPlayerId && (
-                  <span className="text-xs text-blue-400">(You)</span>
-                )}
-              </div>
-            ))}
-          </div>
+      <h1 className="text-5xl font-bold mb-12 tracking-tight bg-gradient-to-r from-blue-400 to-purple-500 text-transparent bg-clip-text">
+        NewCodeBattles
+      </h1>
+
+      {/* INTRO VIEW */}
+      {view === 'intro' && (
+        <div className="flex flex-col gap-4 w-64">
+          <button
+            onClick={() => setView('host')}
+            className="btn-primary py-4 rounded-lg text-lg"
+          >
+            Create Room
+          </button>
+          <button
+            onClick={() => setView('join')}
+            className="py-4 rounded-lg text-lg border border-[var(--bg-panel)] hover:bg-[var(--bg-surface)] transition-colors"
+          >
+            Join Room
+          </button>
         </div>
+      )}
 
-        <div className="text-center">
-          {isHost ? (
-            <button
-              onClick={handleStartGame}
-              disabled={playerList.length < 1}
-              className="px-8 py-4 bg-green-600 hover:bg-green-700 rounded-lg font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Start Game
+      {/* HOST/JOIN Form Container */}
+      {(view === 'host' || view === 'join') && (
+        <div className="w-96 p-8 rounded-xl bg-[var(--bg-surface)] border border-[var(--bg-panel)] shadow-2xl space-y-6">
+          <div className="flex items-center gap-4 mb-6">
+            <button onClick={() => setView('intro')} className="text-[var(--text-secondary)] hover:text-white">
+              ← Back
             </button>
-          ) : (
-            <div className="text-gray-400">
-              Waiting for host to start the game...
+            <h2 className="text-xl font-semibold">
+              {view === 'host' ? 'Host a Game' : 'Join a Game'}
+            </h2>
+          </div>
+
+          {view === 'join' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[var(--text-secondary)]">Room Code</label>
+              <input
+                value={roomCode}
+                onChange={e => setRoomCode(e.target.value)}
+                className="w-full bg-[var(--bg-deep)] border border-[var(--bg-panel)] rounded p-3 focus:outline-none focus:border-blue-500 transition-colors uppercase font-mono"
+                placeholder="XB92Z"
+              />
             </div>
           )}
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-[var(--text-secondary)]">Username</label>
+            <input
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              className="w-full bg-[var(--bg-deep)] border border-[var(--bg-panel)] rounded p-3 focus:outline-none focus:border-blue-500 transition-colors"
+              placeholder="Enter your name"
+            />
+          </div>
+
+          <button
+            onClick={view === 'host' ? handleHost : handleJoin}
+            disabled={isConnecting}
+            className="w-full btn-primary py-3 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isConnecting ? 'Connecting...' : (view === 'host' ? 'Start Lobby' : 'Join Lobby')}
+          </button>
         </div>
-      </div>
+      )}
     </div>
-  )
-}
+  );
+};

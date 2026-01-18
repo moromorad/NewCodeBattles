@@ -1,11 +1,9 @@
 from src.game.Card import Card
-from src.game.ProblemBank.SumTwoNumsProblem import AbstractProblem as SumTwoNumsProblem
-from src.game.ProblemBank.ReverseStringProblem import AbstractProblem as ReverseStringProblem
-from src.game.ProblemBank.Factorial import AbstractProblem as FactorialProblem
+from src.game import ProblemBank
 
 def generate_hand(count=5):
     import random
-    problems = [SumTwoNumsProblem, ReverseStringProblem, FactorialProblem]
+    problems = [ProblemBank.SumTwoNumsProblem, ProblemBank.ReverseStringProblem, ProblemBank.FactorialProblem]
     hand = []
     for _ in range(count):
         prob = random.choice(problems)
@@ -14,7 +12,7 @@ def generate_hand(count=5):
         card = Card(
             name=f"{prob.name} Card",
             problemType=prob.problemType,
-            problem=prob, # Storing the whole object
+            problem=prob.id, # Storing the ID of the problem
             quest=prob.quest,
             reward=prob.reward
         )
@@ -23,6 +21,6 @@ def generate_hand(count=5):
 
 def get_problem_details(problem_id):
     return {
-        "description": problem_id.description,
+        "description": problem_id.setup,
         "test_cases": problem_id.testCases
     }
