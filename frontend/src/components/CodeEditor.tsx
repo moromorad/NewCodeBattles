@@ -33,13 +33,24 @@ export function CodeEditor({ onSubmit, disabled }: CodeEditorProps) {
     <div className="bg-gray-800 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold">Code Editor</h3>
-        <button
-          onClick={handleSubmit}
-          disabled={disabled || !code.trim()}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Submit Solution
-        </button>
+        <div className="flex gap-2">
+          {/* Debug Mode: Skip solving */}
+          <button
+            onClick={() => onSubmit('# DEBUG: Auto-complete')}
+            disabled={disabled}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="Debug: Auto-complete this card"
+          >
+            🐛 Skip
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={disabled || !code.trim()}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Submit Solution
+          </button>
+        </div>
       </div>
       <div className="border border-gray-700 rounded-lg overflow-hidden">
         <Editor
