@@ -16,10 +16,10 @@ export function ProblemCard({ card, isSelected, onSelect }: ProblemCardProps) {
   return (
     <div
       onClick={onSelect}
-      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+      className={`w-48 h-60 p-4 rounded-lg border-2 cursor-pointer transition-all ${
         isSelected
           ? 'border-blue-500 bg-blue-900/20 scale-105'
-          : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+          : 'border-gray-700 bg-gray-800 hover:border-gray-600 hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(255,_255,_255,_0.3)]'
       }`}
     >
       <div className="flex items-start justify-between mb-2">
