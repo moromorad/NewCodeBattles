@@ -5,3 +5,5 @@ class AbstractProblem:
         self.problemType = problemType
         self.quest = quest
         self.reward = reward
+        self.description = description
+        self.testCases = testCases
